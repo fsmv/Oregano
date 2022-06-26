@@ -277,7 +277,7 @@ def get_target_params_2(wallet_conf, sum_value):
 
 class FusionPlugin(BasePlugin):
     fusion_server = None
-    active = True
+    active = False
     _run_iter = 0
 
     def __init__(self, *args, **kwargs):
@@ -298,7 +298,7 @@ class FusionPlugin(BasePlugin):
 
         self.remote_donation_address: str = ''  # optionally announced by the remote server in 'serverhello' message
 
-        if tuple(self.config.get('cashfusion_server', ())) == ('cashfusion.oregano.dk', 8787, False):
+        if tuple(self.config.get('cashfusion_server', ())) == ('cashfusion.electroncash.dk', 8787, False):
             # User's config has the old default non-SSL server. If we see this,
             # just wipe the config key so that the new default is used.
             # But only reset once, after that let them go back if that is what
