@@ -23,6 +23,7 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+from .transaction import tx_from_str
 import argparse
 import ast
 import base64
@@ -36,6 +37,7 @@ from decimal import Decimal as PyDecimal  # Qt 5.12 also exports Decimal
 from functools import wraps
 
 from . import bitcoin
+from . import rpa
 from . import util
 from .address import Address, AddressError
 from .bitcoin import hash_160, COIN, TYPE_ADDRESS
@@ -43,9 +45,10 @@ from .i18n import _
 from .plugins import run_hook
 from .wallet import create_new_wallet, restore_wallet_from_text
 from .transaction import Transaction, multisig_script, OPReturn
-from .util import bfh, bh2u, format_satoshis, json_decode, print_error, to_bytes
+from .util import bfh, bh2u, format_satoshis, json_decode, print_error, standardize_path, to_bytes
 from .paymentrequest import PR_PAID, PR_UNCONFIRMED, PR_UNPAID, PR_UNKNOWN, PR_EXPIRED
 from .simple_config import SimpleConfig
+from .version import PACKAGE_VERSION
 
 known_commands = {}
 
@@ -54,6 +57,16 @@ def fixoshis(amount):
     # fixoshi conversion must not be performed by the parser
     return int(COIN*PyDecimal(amount)) if amount not in ['!', None] else amount
 
+def assertOutpoint(out: str):
+    """Perform some basic sanity checks on a string that represents a
+    transaction outpoint. Namely, 64 characters and a non-negative integer
+    separated by a colon."""
+    prevoutParts = out.split(':')
+    assert len(prevoutParts) == 2, "invalid outpoint"
+    prevout_hash, prevout_n  = prevoutParts
+    prevout_hash = bytes.fromhex(prevout_hash)
+    assert len(prevout_hash) == 32, f"{prevout_hash.hex()} should be a 32-byte hash"
+    assert int(prevout_n) >= 0, f"invalid output index {prevout_n}"
 
 class Command:
     def __init__(self, func, s):
@@ -109,9 +122,10 @@ def command(s):
 
 class Commands:
 
-    def __init__(self, config, wallet, network, callback = None):
+    def __init__(self, config, wallet, network, daemon=None, callback = None):
         self.config = config
         self.wallet = wallet
+        self.daemon = daemon
         self.network = network
         self._callback = callback
 
@@ -174,6 +188,59 @@ class Commands:
     def commands(self):
         """List of commands"""
         return ' '.join(sorted(known_commands.keys()))
+
+    @command('n')
+    def getinfo(self):
+        """ network info """
+        net_params = self.network.get_parameters()
+        response = {
+            'path': self.network.config.path,
+            'server': net_params[0],
+            'blockchain_height': self.network.get_local_height(),
+            'server_height': self.network.get_server_height(),
+            'spv_nodes': len(self.network.get_interfaces()),
+            'connected': self.network.is_connected(),
+            'auto_connect': net_params[4],
+            'version': PACKAGE_VERSION,
+            'default_wallet': self.config.get_wallet_path(),
+            'wallets': {k: w.is_up_to_date()
+                        for k, w in self.daemon.wallets.items()},
+            'fee_per_kb': self.config.fee_per_kb(),
+        }
+        return response
+
+    @command('n')
+    def stop(self):
+        """Stop daemon"""
+        self.daemon.stop()
+        return "Daemon stopped"
+
+    @command('n')
+    def list_wallets(self):
+        """List wallets open in daemon"""
+        return [{'path':k, 'synchronized':w.is_up_to_date()} for k, w in self.daemon.wallets.items()]
+
+    @command('n')
+    def load_wallet(self):
+        """Open wallet in daemon"""
+        path = self.config.get_wallet_path()
+        wallet = self.daemon.load_wallet(path, self.config.get('password'))
+        if wallet is not None:
+            self.wallet = wallet
+        response = wallet is not None
+        return response
+
+    @command('n')
+    def close_wallet(self):
+        """Close wallet"""
+        path = self.config.get_wallet_path()
+        if path in self.daemon.wallets:
+            self.daemon.stop_wallet(path)
+            response = True
+        else:
+            response = False
+        return response
+
 
     @command('')
     def create(self, passphrase=None, password=None, encrypt_file=True, seed_type=None, wallet_path=None):
@@ -308,6 +375,8 @@ class Commands:
         inputs = jsontx.get('inputs')
         outputs = jsontx.get('outputs')
         locktime = jsontx.get('locktime', 0)
+        locktime = jsontx.get('lockTime', locktime)
+        version = jsontx.get('version', 1)
         for txin in inputs:
             if txin.get('output'):
                 prevout_hash, prevout_n = txin['output'].split(':')
@@ -324,7 +393,7 @@ class Commands:
                 txin['num_sig'] = 1
 
         outputs = [(TYPE_ADDRESS, Address.from_string(x['address']), int(x['value'])) for x in outputs]
-        tx = Transaction.from_io(inputs, outputs, locktime=locktime, sign_schnorr=self.wallet and self.wallet.is_schnorr_enabled())
+        tx = Transaction.from_io(inputs, outputs, locktime=locktime, version=version, sign_schnorr=self.wallet and self.wallet.is_schnorr_enabled())
         tx.sign(keypairs)
         return tx.as_dict()
 
@@ -361,16 +430,30 @@ class Commands:
         return {'address':address, 'redeemScript':redeem_script}
 
     @command('w')
-    def freeze(self, address):
+    def freeze(self, address: str):
         """Freeze address. Freeze the funds at one of your wallet\'s addresses"""
         address = Address.from_string(address)
         return self.wallet.set_frozen_state([address], True)
 
     @command('w')
-    def unfreeze(self, address):
+    def unfreeze(self, address: str):
         """Unfreeze address. Unfreeze the funds at one of your wallet\'s address"""
         address = Address.from_string(address)
         return self.wallet.set_frozen_state([address], False)
+
+    @command('w')
+    def freeze_utxo(self, coin: str):
+        """Freeze a UTXO so that the wallet will not spend it."""
+        assertOutpoint(coin)
+        self.wallet.set_frozen_coin_state([coin], True)
+        return True
+
+    @command('w')
+    def unfreeze_utxo(self, coin: str):
+        """Unfreeze a UTXO so that the wallet might spend it."""
+        assertOutpoint(coin)
+        self.wallet.set_frozen_coin_state([coin], False)
+        return True
 
     @command('wp')
     def getprivatekeys(self, address, password=None):
@@ -553,6 +636,24 @@ class Commands:
                 self.wallet.add_tx_to_history(tx.txid())
                 self.wallet.save_transactions()
         return tx
+
+    @command('w')
+    def rpa_generate_paycode(self):
+        if self.wallet.wallet_type != 'rpa':
+            return {'error': 'This command may only be used on an RPA wallet.'}
+        return rpa.paycode.generate_paycode(self.wallet)
+
+    @command('w')
+    def rpa_generate_transaction_from_paycode(self, amount, paycode):
+        # WARNING: Amount is in full Bitcoin Cash units
+        return rpa.paycode.generate_transaction_from_paycode(self.wallet, self.config, amount, paycode)
+
+    @command('wp')
+    def rpa_extract_private_keys_from_transaction(self, raw_tx, password=None):
+        if self.wallet.wallet_type != 'rpa':
+            return {'error': 'This command may only be used on an RPA wallet.'}
+
+        return rpa.paycode.extract_private_keys_from_transaction(self.wallet, raw_tx, password)
 
     @command('wp')
     def payto(self, destination, amount, fee=None, feerate=None, from_addr=None, change_addr=None, nocheck=False, unsigned=False, password=None, locktime=None,
@@ -867,7 +968,7 @@ command_options = {
     'expiration':  (None, "Time in seconds"),
     'expired':     (None, "Show only expired requests."),
     'fee':         ("-f", "Transaction fee (absolute, in XRG)"),
-    'feerate':     (None, "Transaction fee rate (in sat/byte)"),
+    'feerate':     (None, "Transaction fee rate (in fix/byte)"),
     'force':       (None, "Create new address beyond gap limit, if no more addresses are available."),
     'from_addr':   ("-F", "Source address (must be a wallet address; use sweep to spend from non-wallet address)."),
     'frozen':      (None, "Show only frozen addresses"),
@@ -1003,7 +1104,10 @@ def add_global_options(parser):
     group.add_argument("--testnet", action="store_true", dest="testnet", default=False, help="Use Testnet")
     group.add_argument("--testnet4", action="store_true", dest="testnet4", default=False, help="Use Testnet4")
     group.add_argument("--scalenet", action="store_true", dest="scalenet", default=False, help="Use Scalenet")
-    group.add_argument("--taxcoin", action="store_true", dest="taxcoin", default=False, help="Use TaxCoin (ABC)")
+    group.add_argument("--chipnet", action="store_true", dest="chipnet", default=False, help="Use Chipnet")
+    group.add_argument("--regtest", action="store_true", dest="regtest", default=False, help="Use Regtest")
+    group.add_argument("-C", "--console2", action="store_true", dest="console2", default=False,
+                       help=_("Use the advanced dev console for the console tab (Qt only)"))
 
 def get_parser():
     # create main parser
