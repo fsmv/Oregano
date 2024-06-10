@@ -580,13 +580,6 @@ class Blockchain(util.PrintError):
         daa_minimum = resistance//2 - 1
         prevheight = height-1
 
-    def get_new_bits(self, height, chunk=None):
-        N_BLOCKS = networks.net.LEGACY_POW_RETARGET_BLOCKS
-        assert height % N_BLOCKS == 0
-        # Genesis
-        if height == 0:
-            return MAX_BITS
-        first = self.read_header(height - N_BLOCKS, chunk)
         prior = self.read_header(height - 1, chunk)
         if prior is None:
             raise Exception("get_bits missing header {} with chunk {!r}".format(height - 1, chunk))
