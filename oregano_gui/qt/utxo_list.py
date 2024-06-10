@@ -283,7 +283,7 @@ class UTXOList(MyTreeWidget):
                 menu.addAction(_("Copy {}").format(column_title), lambda: QApplication.instance().clipboard().setText(copy_text))
                 if alt_copy_text and alt_column_title:
                     menu.addAction(_("Copy {}").format(alt_column_title), lambda: QApplication.instance().clipboard().setText(alt_copy_text))
-                if token_text:
+                if False:
                     menu.addAction(_("Copy {}").format(_("Token Address")), lambda: QApplication.instance().clipboard().setText(token_text))
                 if ca_info:
                     self.wallet.cashacct.fmt_info(ca_info)  # paranoia: pre-cache minimal chash (may go out to network)

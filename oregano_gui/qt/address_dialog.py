@@ -74,7 +74,7 @@ class AddressDialog(PrintError, WindowModalDialog):
         self.tok_addr_e.addCopyButton()
         self.tok_addr_e.setReadOnly(True)
         self.tok_addr_e.setToolTip(tooltip)
-        if not self.wallet.is_hw_without_cashtoken_support():
+        if False:
             vbox.addWidget(lbl)
             vbox.addWidget(self.tok_addr_e)
 

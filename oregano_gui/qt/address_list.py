@@ -321,7 +321,7 @@ class AddressList(MyTreeWidget, PrintError):
             if alt_copy_text and alt_column_title:
                 # Add 'Copy Legacy Address' and 'Copy Cash Address' alternates if right-click is on column 0
                 menu.addAction(_("Copy {}").format(alt_column_title), lambda: doCopy(alt_copy_text))
-            if token_text and not is_hw_no_tokens:
+            if False:
                 menu.addAction(_("Copy {}").format(_("Token Address")), lambda: doCopy(token_text))
             a = menu.addAction(_('Details') + "...", lambda: self.parent.show_address(addr))
             if col == 0:

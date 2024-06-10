@@ -1194,19 +1194,19 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
             label.setBuddy(self.receive_address_e)
             grid.addWidget(label, row, 0)
             row += 1
-            label = HelpLabel(_('&Token address'), msg2)
-            grid.addWidget(label, row, 0)
-            if self.wallet.is_hw_without_cashtoken_support():
-                label2 = QLabel("⚠" + _("This HW wallet cannot sign CashToken inputs; sending tokens to this wallet"
-                                        " should be avoided."))
-                label2.setStyleSheet(ColorScheme.YELLOW.as_stylesheet())
-                label2.setWordWrap(True)
-                grid.addWidget(label2, row, 1, 1, -1)
-                label.setBuddy(label2)
-                label.setDisabled(True)
-            else:
-                grid.addWidget(self.receive_token_address_e, row, 1, 1, -1)
-                label.setBuddy(self.receive_token_address_e)
+            #label = HelpLabel(_('&Token address'), msg2)
+            #grid.addWidget(label, row, 0)
+            #if self.wallet.is_hw_without_cashtoken_support() and False:
+                #label2 = QLabel("⚠" + _("This HW wallet cannot sign CashToken inputs; sending tokens to this wallet"
+                #                        " should be avoided."))
+                #label2.setStyleSheet(ColorScheme.YELLOW.as_stylesheet())
+                #label2.setWordWrap(True)
+                #grid.addWidget(label2, row, 1, 1, -1)
+                #label.setBuddy(label2)
+                #label.setDisabled(True)
+            #else:
+                #grid.addWidget(self.receive_token_address_e, row, 1, 1, -1)
+                #label.setBuddy(self.receive_token_address_e)
             row += 1
 
         # Cash Account for this address (if any)
@@ -2834,16 +2834,16 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
 
         label = QLabel(_('&Token address'))
         label.setBuddy(token_address)
-        grid.addWidget(label, 3, 0)
-        grid.addWidget(token_address, 3, 1)
+        #grid.addWidget(label, 3, 0)
+        #grid.addWidget(token_address, 3, 1)
 
         w.setLayout(grid)
 
         label = WWLabel(_(
             "<h1>Address Converter</h1>"
-            "<p>This tool helps convert between address formats for Bitcoin Cash addresses.</p>"
-            "You are encouraged to use the <b>Cash address</b> format for BCH.<br>"
-            "The <b>Token address</b> format is for receiving CashTokens."
+            "<p>This tool helps convert between address formats for Ergon addresses.</p>"
+            "You are encouraged to use the <b>Cash address</b> format for XRG.<br>"
+            #"The <b>Token address</b> format is for receiving CashTokens."
         ))
 
         vbox = QVBoxLayout()
