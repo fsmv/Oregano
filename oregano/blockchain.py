@@ -48,7 +48,7 @@ MAX_BITS = 0x1d0fffff
 MAX_BITS_REGTEST = 0x207fffff
 # see https://gitlab.com/bitcoin-cash-node/bitcoin-cash-node/-/blob/v24.0.0/src/chainparams.cpp#L98
 # Note: If we decide to support REGTEST this will need to come from regtest's networks.py params!
-MAX_TARGET = 0x00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffff  # compact: 0x1d00ffff
+MAX_TARGET = 0x0000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff  # compact: 0x1d0fffff
 # indicates no header in data file
 NULL_HEADER = bytes([0]) * HEADER_SIZE
 NULL_HASH_BYTES = bytes([0]) * 32
