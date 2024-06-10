@@ -5141,7 +5141,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
             self.wallet.thread.wait() # Join the thread to make sure it's really dead.
 
         for w in [self.address_list, self.history_list, self.utxo_list, self.token_list, self.token_history_list,
-                  self.cash_account_e, self.contact_list, self.tx_update_mgr]:
+                  self.contact_list, self.tx_update_mgr]:
             if w:
                 # tell relevant object to clean itself up, unregister callbacks, disconnect signals, etc
                 w.clean_up()
