@@ -45,7 +45,7 @@ from PyQt5.QtWidgets import *
 
 from oregano import keystore, get_config
 from oregano.address import Address, AddressError, ScriptOutput
-from oregano.bitcoin import COIN, TYPE_ADDRESS, TYPE_SCRIPT
+from oregano.bitcoin import COIN, TYPE_ADDRESS, TYPE_SCRIPT, BYTES_PER_FIX
 from oregano import networks
 from oregano.plugins import run_hook
 from oregano.i18n import _, ngettext, pgettext
